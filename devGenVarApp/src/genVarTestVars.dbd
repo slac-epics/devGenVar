@@ -1,0 +1,2 @@
+variable(genTestS, epicsUInt16)
+variable(genTestL, epicsInt32)

@@ -1,0 +1,183 @@
+devGenVar - device support for connecting basic C/C++ variables to EPICS records
+================================================================================
+
+Purpose: Often, low-level code uses basic variables (int/short/double/...) which
+         you either want to read or write via EPICS records.
+
+         This device-support eases this task and offers some additional features:
+           - minimal coding overhead.
+           - notify (input) records when C-variables have changed via EPICS scan-lists
+             ("I/O Intr" scanning)
+           - notify low-level C-code when EPICS (output) records modifiy C-variable
+           - EPICS DBR types supported; use EPICS conversion facility to convert
+             from C-variable (DBR-type) to/from EPICS record field.
+           - optional locking for serializing access to C-variable
+
+Example 1: You have a low-level task which updates a statistics counter 'myCounter'
+         that you want to make available as an EPICS PV:
+
+         !!!!!!!!!!!!! C-Code !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+         #include <devGenVar.h> 
+
+         /* Your C-variable  */
+         epicsUInt32  myCounter = 0;
+
+         /* Scan-list to notify attached record */
+         IOSCANPVT    myList;
+
+         /* Connector object */
+         DevGenVarRec myGenVar = {
+           DEV_GEN_VAR_INIT( &myList, 0, 0, &myCounter, DBR_ULONG)
+         };
+
+         /* INITIALIZATION   */
+         /* init scanlist    */
+         scanIoInit( &myList );
+         /* create mutex     */
+         devGenVarLockCreate( &myGenVar );
+         /* register name    */
+		 devGenVarRegister( "myVars", &myGenVar, 1 );
+
+         /* RUN-TIME ACCESS  */
+         /* Code updates counter */
+         devGenVarLock( &myGenVar );
+           myCounter++;
+           scanIoRequest( myList );
+         devGenVarUnlock( &myGenVar );
+
+         !!!!!!!!!!!!! EPICS Database !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         # Use 'AI' record to read 'myCounter'
+
+         record(ai,"MYCOUNTER") {
+           field(DTYP, "GenVar")
+           #refer to name used by 'devGenVarRegister'
+           field(INP,  "C0S0@myVars")
+           field(SCAN, "I/O Intr")
+         }
+
+         # Use longout record to write 'myCounter'
+         record(longout "WR_COUNT") {
+           field(DTYP, "GenVar")
+           field(OUT,  "C0S0@myVars")
+           # must use CA link or MYCOUNTER is only updated if Passive 
+           field(FLNK, "MYCOUNTER.PROC CA")
+         }
+
+Example 2: Notify low-level task when writing a record.
+
+         !!!!!!!!!!!!! C-Code !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+         #include <devGenVar.h> 
+
+         /* A dummy variable - we just want to notify a task when
+          * this is written but not actually do anything with the
+          * value...
+          */
+         epicsUInt32  myDummy = 0;
+
+         /* Connector object */
+         DevGenVarRec myGenVar = {
+           DEV_GEN_VAR_INIT( 0, 0, 0, &myDummy, DBR_ULONG)
+         };
+
+         /* INITIALIZATION   */
+         /* create event     */
+         devGenVarEvtCreate( &myGenVar );
+         /* register name    */
+		 devGenVarRegister( "myVars", &myGenVar, 1 );
+
+         /* RUN-TIME ACCESS  */
+         /* Code blocks for event which is posted when
+          * 'myDummy' is written. Since we don't care about
+          * the actual value of 'myDummy' no mutex is required...
+		  */
+         while (1) {
+           devGenVarWait( &myGenVar, -1.0 /* forever */ );
+           do_work();
+         }
+
+         !!!!!!!!!!!!! EPICS Database !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         # Use 'longout' to notify task
+
+         record(longout,"MYNOTIFY") {
+           field(DTYP, "GenVar")
+           field(OUT,  "C0S0@myVars")
+         }
+
+Details:
+--------
+The connection between a record/devsup and a user variable is described
+with a 'DevGenVarRec' struct. Pointers to these structs are associated
+with a symbolic name and entered into the EPICS registry by your low-level
+code.
+
+Records in the EPICS database select a particular 'DevGenVarRec' 
+by means of their INP/OUT field definitions. These links must be of
+type VME_IO and list the symbolic name in the 'parm' specification of
+the link after the '@' character. A VME_IO link has the form
+
+  Cx Sy @parm
+
+The 'card' number following 'C', in this case: 'x' selects a particular
+'instance'. I.e, an entire array of DevGenVarRec's can be registered
+under a single name and 'x' is then used as an index into this array.
+
+A DevGenVarRec must be alloated and initialized by your application.
+Initialization can be done with the devGenVarInit() routine or with
+the DEV_GEN_VAR_INIT() macro which is useful for statically allocated
+structs. These helpers bring the struct into a defined state but
+it may still be necessary to assign individual fields (especially
+in the case of devGenVarInit() which basically zeros out the entire
+structure. The individual fields have the following semantics:
+
+scan_p:     (optional) pointer to a IOSCANPVT object defining
+            the scan-list any record connecting to this particular
+            DevGenVarRec is using when it's SCAN field is set to
+            "I/O Intr".
+            Note that multiple DevGenVarRec's may refer to the
+            same IOSCANPVT/scan-list.
+            Note also, that it is your responsability to initialize
+            the IOSCANPVT object. 'scan_p' is merely a *pointer*
+            to this object.
+            The intended use is that your code calls scanIoRequest()
+            on the associated IOSCANPVT whenever all or any of the
+            variables connected to the DevGenVarRec's referring to
+            this IOSCANPVT change.
+
+            Note that in many cases (slow monitoring) a scan-list
+            is not necessary but the record can just be scanned
+            periodically. However, if you want to record timestamps
+            for rare events then a scan-list is a better solution
+            (unless you monitor for changes and record timestamps
+            on the client side).
+
+mtx:        (optional) mutex to serialize access to your (*data_p)
+            variable. All read/write/read-modify-write access performed
+            by the devsup module acquires and releases the mutex
+            (if it is present). It is your responsability to lock/unlock
+            the same mutex when accessing your variable from your low-level
+            code. It is also your responsibility to create the mutex
+            and attach it to the DevGenVarRec. It is perfectly legal
+            for multiple DevGenVarRec's / variables to share a single
+            mutex.
+
+evt:        (optional) event that can be used to notify your code
+            when the variable was written by an output record.
+            (Never used by input records). It is your responsibility
+            to create an event (devGenVarEvtCreate()).
+
+data_p:     pointer to your variable
+
+dbr_t:      EPICS DBR type of your variable. It is crucial that this
+            type MATCHES the true type of your variable. Note that the
+            DBR_LONG and DBR_ULONG were designed for 32-bit machines
+            and DO NOT match 'long' and 'unsigned long', respectively.
+            You MUST use epicsInt32/epicUInt32 variables in order
+            for your code to be portable to 64-bit architectures.
+            It is a good idea to use explicit types from epicsTypes.h
+            for your variables!
+
+Note that it is perfectly legal to connect multiple records to a single
+'DevGenVarRec' and it's underlying variable. You can have one (input) record
+reading the variable and another (output) record writing to it.

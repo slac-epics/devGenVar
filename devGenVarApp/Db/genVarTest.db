@@ -1,0 +1,131 @@
+record(mbbo,"$(prefix):mbbo") {
+	field(DTYP, "GenVar")
+	field(OUT,  "#C0S0@testS")
+	field(ZRST, "ZERO")
+	field(ZRVL, "0")
+	field(ONST, "ONE")
+	field(ONVL, "1")
+	field(TWST, "TWO")
+	field(TWVL, "2")
+	field(THST, "THREE")
+	field(THVL, "3")
+	field(NOBT, "2")
+	field(SHFT, "4")
+}
+
+record(bo,  "$(prefix):bo") {
+	field(DTYP, "GenVar")
+	field(OUT,  "#C0S0@testS")
+	field(ONAM, "TRUE")
+	field(ZNAM, "FALSE")
+	field(MASK, "0xdead")
+}
+
+record(longin, "$(prefix):li") {
+	field(DTYP, "GenVar")
+	field(INP,  "#C0S0@testS")
+	field(SCAN, "I/O Intr")
+}
+
+record(longout, "$(prefix):lo") {
+	field(DTYP, "GenVar")
+	field(OUT,  "#C0S0@testS")
+	field(FLNK, "$(prefix):li.PROC CA")
+}
+
+
+record(ao,  "$(prefix):ao") {
+	field(DTYP, "GenVar")
+	field(OUT,  "#C0S0@testL")
+	field(LINR, "LINEAR")
+	field(ESLO, "2")
+	field(PINI, "YES")
+}
+
+record(ao,  "$(prefix):aonc") {
+	field(DTYP, "GenVar")
+	field(OUT,  "#C0S1@testL")
+	field(LINR, "LINEAR")
+	field(ESLO, "2")
+	field(PINI, "YES")
+}
+
+
+record(mbbi,"$(prefix):mbbi") {
+	field(DTYP, "GenVar")
+	field(INP,  "#C0S0@testS")
+	field(MASK, "0x0f")
+	field(SCAN, "I/O Intr")
+	field(ZRVL, "0")
+	field(ONVL, "1")
+	field(TWVL, "2")
+	field(THVL, "3")
+	field(ZRST, "ZERO")
+	field(ONST, "ONE")
+	field(TWST, "TWO")
+	field(THST, "THREE")
+	field(NOBT, "2")
+	field(SHFT, "2")
+}
+
+record(mbbi,"$(prefix):mbbinc") {
+	field(DTYP, "GenVar")
+	field(INP,  "#C0S1@testS")
+	field(MASK, "0x0f")
+	field(SCAN, "I/O Intr")
+	field(ZRVL, "0")
+	field(ONVL, "1")
+	field(TWVL, "2")
+	field(THVL, "3")
+	field(ZRST, "ZERO")
+	field(ONST, "ONE")
+	field(TWST, "TWO")
+	field(THST, "THREE")
+	field(NOBT, "2")
+	field(SHFT, "2")
+}
+
+
+record(bi,"$(prefix):bi") {
+	field(DTYP, "GenVar")
+	field(INP,  "#C0S0@testS")
+	field(MASK, "0x0f")
+	field(SCAN, "I/O Intr")
+	field(ZNAM, "FALSE")
+	field(ONAM, "TRUE")
+}
+
+record(bi,"$(prefix):binc") {
+	field(DTYP, "GenVar")
+	field(INP,  "#C0S1@testS")
+	field(MASK, "0x0f")
+	field(SCAN, "I/O Intr")
+	field(ZNAM, "FALSE")
+	field(ONAM, "TRUE")
+}
+
+
+record(ai,"$(prefix):ai") {
+	field(DTYP, "GenVar")
+	field(INP,  "#C0S0@testL")
+	field(LINR, "LINEAR")
+	field(ESLO, "2")
+	field(SCAN, "I/O Intr")
+}
+
+record(ai,"$(prefix):ai1") {
+	field(DTYP, "GenVar")
+	field(INP,  "#C1S0@testL")
+	field(LINR, "LINEAR")
+	field(ESLO, "1")
+	field(SCAN, "I/O Intr")
+}
+
+
+record(ai,"$(prefix):ainc") {
+	field(DTYP, "GenVar")
+	field(INP,  "#C0S1@testL")
+	field(LINR, "LINEAR")
+	field(ESLO, "2")
+	field(SCAN, "I/O Intr")
+}

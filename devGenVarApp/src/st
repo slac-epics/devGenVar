@@ -1,0 +1,4 @@
+dbLoadDatabase("O.Common/genVarTest.dbd")
+genVarTest_registerRecordDeviceDriver(pdbbase)
+dbLoadRecords("../Db/genVarTest.db","prefix=xxx")
+iocInit()
