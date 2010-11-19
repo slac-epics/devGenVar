@@ -72,7 +72,7 @@ typedef struct DevGenVarRec_ {
  * Static DevGenVarRec's may be initialized using the DEV_GEN_VAR_INIT()
  * macro below.
  */
-static inline void
+static __inline__ void
 devGenVarInit( DevGenVar p, int n_entries )
 {
 	memset( p, 0, n_entries * sizeof( *p ) );
@@ -133,7 +133,7 @@ devGenVarEvtCreate(DevGenVar p);
 #define DEV_GEN_VAR_ERRWAIT    2    /* blocking operation returned error    */
 #define DEV_GEN_VAR_ERRNOEVT  -1	/* blocking not supported by this GenVar */
 
-static inline long
+static __inline__ long
 devGenVarWait(DevGenVar p, double timeout)
 {
 	if ( !p || !p->evt )
@@ -156,14 +156,14 @@ devGenVarLockCreate(DevGenVar p);
 /* Serialize access to underlying variable.
  * ALWAYS use these inlines - implementation of lock may change!
  */
-static inline void
+static __inline__ void
 devGenVarLock(DevGenVar p)
 {
 	if ( p->mtx )
 		epicsMutexMustLock( p->mtx );
 }
 
-static inline void
+static __inline__ void
 devGenVarUnlock(DevGenVar p)
 {
 	if ( p->mtx )
