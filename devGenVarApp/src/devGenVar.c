@@ -162,6 +162,22 @@ long          status;
 }
 
 long
+devGenVarInitScanPvt( DevGenVar p, int n_entries )
+{
+int i;
+
+	devGenVarInit( p, n_entries );
+
+	for ( i = 0; i < n_entries; i++ ) {
+		if ( ! (p[i].scan_p = malloc( sizeof(IOSCANPVT) )) )
+			return -1;
+		scanIoInit( p[i].scan_p );
+	}
+	return 0;
+}
+
+
+long
 devGenVarGetIointInfo(int delFrom, dbCommon *prec, IOSCANPVT *ppvt)
 {
 DevGenVar gv = ((DevGenVarPvt)prec->dpvt)->gv;

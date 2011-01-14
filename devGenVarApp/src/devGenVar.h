@@ -79,6 +79,19 @@ devGenVarInit( DevGenVar p, int n_entries )
 }
 
 /*
+ * Initialize and array of DevGenVarRec's using devGenVarInit().
+ * Then, create, initialize and attach an individual IOSCANPVT
+ * object to each element's 'scan_p' pointer.
+ * This is a helper for applications who want an individual 
+ * scan-list for each variable.
+ *
+ * RETURNS: zero on success, nonzero if an error occurred (e.g., no memory).
+ *          The state of the array is undefined if an error occurred.
+ */
+long
+devGenVarInitScanPvt( DevGenVar p, int n_entries );
+
+/*
  * Alternate initializer for static DevGenVarRec's. You should
  * always use this macro (in case more fields are added in the future)
  * in order to produce portable code. Initialize unused, optional fields
@@ -152,6 +165,28 @@ devGenVarWait(DevGenVar p, double timeout)
 long
 devGenVarLockCreate(DevGenVar p);
 
+/*
+ * If you just want to create a lock (and attach to a DevGenVar
+ * in a separate step then use devGenVarLockCreateRaw())
+ */
+static __inline__ DevGenVarMtx
+devGenVarLockCreateRaw(void)
+{
+	return epicsMutexMustCreate();
+}
+
+static __inline__ void
+devGenVarLockRaw(DevGenVarMtx mtx)
+{
+	epicsMutexMustLock( mtx );
+}
+
+static __inline__ void
+devGenVarUnlockRaw(DevGenVarMtx mtx)
+{
+	epicsMutexUnlock( mtx );
+}
+
 
 /* Serialize access to underlying variable.
  * ALWAYS use these inlines - implementation of lock may change!
@@ -169,6 +204,14 @@ devGenVarUnlock(DevGenVar p)
 	if ( p->mtx )
 		epicsMutexUnlock( p->mtx );
 }
+
+static __inline__ void
+devGenVarScan(DevGenVar p)
+{
+	if ( p->scan_p )
+		scanIoRequest( *p->scan_p );
+}
+
 
 #ifdef __cplusplus
 }
