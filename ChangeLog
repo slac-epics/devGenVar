@@ -1,0 +1,6 @@
+20110114 Till Straumann <strauman@slac.stanford.edu>
+    - devGenVarApp/src/devGenVar.c, devGenVarApp/src/devGenVar.h:
+      Added 'devGenVarInitScanPvt()', 'devGenVarLockRaw()',
+      'devGenVarUnlockRaw()', 'devGenVarScan()'
+
+    - ChangeLog: Added
