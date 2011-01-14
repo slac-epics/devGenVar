@@ -178,6 +178,10 @@ dbr_t:      EPICS DBR type of your variable. It is crucial that this
             It is a good idea to use explicit types from epicsTypes.h
             for your variables!
 
+            Note that the 'dbr_t' may well differ from the type of
+            the connected record field -- EPICS' data conversion
+            facility is employed for proper conversion.
+
 Note that it is perfectly legal to connect multiple records to a single
 'DevGenVarRec' and it's underlying variable. You can have one (input) record
 reading the variable and another (output) record writing to it.
