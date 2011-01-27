@@ -212,6 +212,18 @@ devGenVarScan(DevGenVar p)
 		scanIoRequest( *p->scan_p );
 }
 
+/* EPICS' 'general-purpose' hash table
+ * is of limited size :-(
+ * Call this *before* iocInit to configure
+ * the table used by devGenVar.
+ *
+ * RETURNS: Zero on success, nonzero
+ * on failure (returning the current
+ * table size).
+ */
+int
+devGenVarConfig(unsigned table_size);
+
 
 #ifdef __cplusplus
 }

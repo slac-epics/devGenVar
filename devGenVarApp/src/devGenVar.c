@@ -5,7 +5,7 @@
 #include <dbCommon.h>
 #include <dbBase.h>
 #include <errlog.h>
-#include <registry.h>
+#include <gpHash.h>
 #include <recGbl.h>
 #include <alarm.h>
 #include <epicsExport.h>
@@ -15,6 +15,8 @@
 #include <math.h>
 
 #include "devGenVar.h"
+
+#define REG_TBL_SZ_DEFAULT 512
 
 #define FLG_NCONV    (1<<0)
 #define FLG_NCSUP    (1<<1)
@@ -30,7 +32,35 @@ typedef struct RegHeadRec_ {
 	int        n_entries;
 } RegHeadRec, *RegHead;
 
-void *devGenVarRegistry = (void*)&devGenVarRegistry;
+void *devGenVarRegistry  = 0;
+static unsigned regTblSz = REG_TBL_SZ_DEFAULT;
+
+int
+devGenVarConfig(unsigned tblSz)
+{
+	if ( devGenVarRegistry ) {
+		/* Already initialized; return current size */
+		return regTblSz;
+	}
+	regTblSz = tblSz;
+	return 0;
+}
+
+static int dev_gv_init()
+{
+	/* Assume this is executed during early init from
+	 * a single thread and that no locking is required.
+	 */
+	if ( ! devGenVarRegistry ) {
+		if ( ! regTblSz )
+			regTblSz = REG_TBL_SZ_DEFAULT;
+		gphInitPvt( &devGenVarRegistry, regTblSz );
+
+		if ( ! devGenVarRegistry ) 
+			cantProceed("devGenVar: Unable to create hash table\n");
+	}
+	return 0;
+}
 
 long
 devGenVarRegister(const char *registryEntry, DevGenVar gv, int n_entries)
