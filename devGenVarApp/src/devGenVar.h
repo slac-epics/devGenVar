@@ -228,13 +228,6 @@ devGenVarScan(DevGenVar p)
 int
 devGenVarConfig(unsigned ldTableSize);
 
-/* Initialize device-support module. This is
- * to be used as the 'init' member in any DSET.
- */
-long
-devGenVarInitDevSup(int pass);
-
-
 #ifdef __cplusplus
 }
 #endif

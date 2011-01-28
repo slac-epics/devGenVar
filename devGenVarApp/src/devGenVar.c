@@ -18,6 +18,7 @@
 #include <math.h>
 
 #include <epicsVersion.h>
+#include <epicsThread.h>
 
 #include "devGenVar.h"
 
@@ -59,6 +60,23 @@ void
 
 static unsigned regLdTblSz = REG_LD_TBL_SZ_DEFAULT;
 
+static epicsThreadOnceId once_id = 0;
+
+static void init_once_fn(void *unused)
+{
+	if ( ! devGenVarRegistry ) {
+		gphInitPvt( &devGenVarRegistry, (1 << regLdTblSz) );
+
+		if ( ! devGenVarRegistry ) 
+			cantProceed("devGenVar: Unable to create hash table\n");
+	}
+}
+
+static void init_once()
+{
+	epicsThreadOnce( &once_id, init_once_fn, 0 );
+}
+
 int
 devGenVarConfig(unsigned ldTblSz)
 {
@@ -75,25 +93,12 @@ devGenVarConfig(unsigned ldTblSz)
 }
 
 long
-devGenVarInitDevSup(int pass)
-{
-	/* Assume this is executed during early init from
-	 * a single thread and that no locking is required.
-	 */
-	if ( ! devGenVarRegistry ) {
-		gphInitPvt( &devGenVarRegistry, (1 << regLdTblSz) );
-
-		if ( ! devGenVarRegistry ) 
-			cantProceed("devGenVar: Unable to create hash table\n");
-	}
-	return 0;
-}
-
-long
 devGenVarRegister(const char *registryEntry, DevGenVar gv, int n_entries)
 {
 RegHead   h = 0;
 GPHENTRY *he;
+
+	init_once();
 	
 	if ( ! (h = malloc(sizeof(*h))) ) {
 		errlogPrintf("devGenVarRegister: no memory\n");
@@ -254,6 +259,9 @@ static void *
 findEntry(const char *name)
 {
 GPHENTRY *he;
+
+	init_once();
+
 	if ( ! name )
 		return 0;
 	if ( ! (he = gphFind( devGenVarRegistry, name, devGenVarRegistry )) )
@@ -435,7 +443,7 @@ static struct {
 } devAiGenVar = {
 	6,
 	NULL,
-	devGenVarInitDevSup,
+	NULL,
 	init_rec_ai,
 	devGenVarGetIointInfo,
 	devGenVarGet,
@@ -467,7 +475,7 @@ static struct {
 } devLiGenVar = {
 	5,
 	NULL,
-	devGenVarInitDevSup,
+	NULL,
 	init_rec_li,
 	devGenVarGetIointInfo,
 	devGenVarGet
@@ -515,7 +523,7 @@ static struct {
 } devBiGenVar = {
 	5,
 	NULL,
-	devGenVarInitDevSup,
+	NULL,
 	init_rec_bi,
 	devGenVarGetIointInfo,
 	read_bi
@@ -567,7 +575,7 @@ static struct {
 } devMbbiGenVar = {
 	5,
 	NULL,
-	devGenVarInitDevSup,
+	NULL,
 	init_rec_mbbi,
 	devGenVarGetIointInfo,
 	read_mbbi
@@ -599,7 +607,7 @@ static struct {
 } devAoGenVar = {
 	6,
 	NULL,
-	devGenVarInitDevSup,
+	NULL,
 	init_rec_ao,
 	devGenVarGetIointInfo,
 	devGenVarPut,
@@ -633,7 +641,7 @@ static struct {
 } devLoGenVar = {
 	5,
 	NULL,
-	devGenVarInitDevSup,
+	NULL,
 	init_rec_lo,
 	devGenVarGetIointInfo,
 	devGenVarPut
@@ -711,7 +719,7 @@ static struct {
 } devBoGenVar = {
 	5,
 	NULL,
-	devGenVarInitDevSup,
+	NULL,
 	init_rec_bo,
 	devGenVarGetIointInfo,
 	write_bo
@@ -797,7 +805,7 @@ static struct {
 } devMbboGenVar = {
 	5,
 	NULL,
-	devGenVarInitDevSup,
+	NULL,
 	init_rec_mbbo,
 	devGenVarGetIointInfo,
 	write_mbbo

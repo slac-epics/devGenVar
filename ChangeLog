@@ -1,3 +1,7 @@
+2011/01/28 Till Straumann <strauman@slac.stanford.edu>
+    - devGenVarApp/src/devGenVar.c, devGenVarApp/src/devGenVar.h:
+      removed devGenVarInitDevSup(). devGenVar should be available
+      before iocInit(). We now do lazy init via epicsThreadOnce...
 2011/01/27 Till Straumann <strauman@slac.stanford.edu>
     - devGenVarApp/src/devGenVar.c, devGenVarApp/src/devGenVar.h:
       hash table size must be a power of two between 8..16.
