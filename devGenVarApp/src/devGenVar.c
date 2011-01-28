@@ -5,10 +5,13 @@
 #include <dbCommon.h>
 #include <dbBase.h>
 #include <errlog.h>
+#include <stdio.h> /* required by gpHash.h; epics 3.14.11 */
 #include <gpHash.h>
 #include <recGbl.h>
 #include <alarm.h>
 #include <epicsExport.h>
+#include <cantProceed.h>
+#include <iocsh.h>
 
 #include <string.h>
 #include <stdlib.h>
@@ -32,7 +35,7 @@ typedef struct RegHeadRec_ {
 	int        n_entries;
 } RegHeadRec, *RegHead;
 
-void *devGenVarRegistry  = 0;
+struct gphPvt *devGenVarRegistry  = 0;
 static unsigned regTblSz = REG_TBL_SZ_DEFAULT;
 
 int
@@ -46,13 +49,14 @@ devGenVarConfig(unsigned tblSz)
 	return 0;
 }
 
-static int dev_gv_init()
+long
+devGenVarInitDevSup(int pass)
 {
 	/* Assume this is executed during early init from
 	 * a single thread and that no locking is required.
 	 */
 	if ( ! devGenVarRegistry ) {
-		if ( ! regTblSz )
+		if ( 0 == regTblSz )
 			regTblSz = REG_TBL_SZ_DEFAULT;
 		gphInitPvt( &devGenVarRegistry, regTblSz );
 
@@ -65,19 +69,24 @@ static int dev_gv_init()
 long
 devGenVarRegister(const char *registryEntry, DevGenVar gv, int n_entries)
 {
-RegHead h = 0;
+RegHead   h = 0;
+GPHENTRY *he;
 	
 	if ( ! (h = malloc(sizeof(*h))) ) {
 		errlogPrintf("devGenVarRegister: no memory\n");
 		return -1;
 	}
+
 	h->n_entries = n_entries;
 	h->gv        = gv;
-	if ( ! registryAdd(devGenVarRegistry, registryEntry, h) ) {
+
+	if ( ! (he = gphAdd(devGenVarRegistry, registryEntry, devGenVarRegistry)) ) {
 		errlogPrintf("devGenVarRegister: Unable to add entry '%s'\n", registryEntry);
 		free(h);
 		return -1;
 	}
+
+	he->userPvt = h;
 	return 0;
 }
 
@@ -218,6 +227,18 @@ DevGenVar gv = ((DevGenVarPvt)prec->dpvt)->gv;
 	return 0;
 }
 
+static void *
+findEntry(const char *name)
+{
+GPHENTRY *he;
+	if ( ! name )
+		return 0;
+	if ( ! (he = gphFind( devGenVarRegistry, name, devGenVarRegistry )) )
+		return 0;
+	return he->userPvt;
+}
+
+
 static long
 devGenVarInitRec(DBLINK *l, dbCommon *prec, int fldOff, int rawFldOff)
 {
@@ -233,7 +254,7 @@ dbFldDes *fldD;
 		goto bail;
 	}
 
-	if ( ! ( h = registryFind( devGenVarRegistry, l->value.vmeio.parm ) ) ) {
+	if ( ! ( h = findEntry( l->value.vmeio.parm ) ) ) {
 		errlogPrintf("devGenVarInitRec(%s): no registry entry found for %s\n", prec->name, l->value.vmeio.parm);
 		rval = S_dev_noDeviceFound;
 		goto bail;
@@ -391,7 +412,7 @@ static struct {
 } devAiGenVar = {
 	6,
 	NULL,
-	NULL,
+	devGenVarInitDevSup,
 	init_rec_ai,
 	devGenVarGetIointInfo,
 	devGenVarGet,
@@ -423,7 +444,7 @@ static struct {
 } devLiGenVar = {
 	5,
 	NULL,
-	NULL,
+	devGenVarInitDevSup,
 	init_rec_li,
 	devGenVarGetIointInfo,
 	devGenVarGet
@@ -471,7 +492,7 @@ static struct {
 } devBiGenVar = {
 	5,
 	NULL,
-	NULL,
+	devGenVarInitDevSup,
 	init_rec_bi,
 	devGenVarGetIointInfo,
 	read_bi
@@ -523,7 +544,7 @@ static struct {
 } devMbbiGenVar = {
 	5,
 	NULL,
-	NULL,
+	devGenVarInitDevSup,
 	init_rec_mbbi,
 	devGenVarGetIointInfo,
 	read_mbbi
@@ -555,7 +576,7 @@ static struct {
 } devAoGenVar = {
 	6,
 	NULL,
-	NULL,
+	devGenVarInitDevSup,
 	init_rec_ao,
 	devGenVarGetIointInfo,
 	devGenVarPut,
@@ -589,7 +610,7 @@ static struct {
 } devLoGenVar = {
 	5,
 	NULL,
-	NULL,
+	devGenVarInitDevSup,
 	init_rec_lo,
 	devGenVarGetIointInfo,
 	devGenVarPut
@@ -667,7 +688,7 @@ static struct {
 } devBoGenVar = {
 	5,
 	NULL,
-	NULL,
+	devGenVarInitDevSup,
 	init_rec_bo,
 	devGenVarGetIointInfo,
 	write_bo
@@ -753,9 +774,37 @@ static struct {
 } devMbboGenVar = {
 	5,
 	NULL,
-	NULL,
+	devGenVarInitDevSup,
 	init_rec_mbbo,
 	devGenVarGetIointInfo,
 	write_mbbo
 };
 epicsExportAddress(dset, devMbboGenVar);
+
+static const iocshArg devGenVarConfigArg1 = {
+	name:	"table_size",
+	type:   iocshArgInt,
+};
+
+static const iocshArg *devGenVarConfigArgs[] = {
+	&devGenVarConfigArg1,
+};
+
+static iocshFuncDef devGenVarConfigDef = {
+	name: "devGenVarConfig",
+	nargs: sizeof(devGenVarConfigArgs)/sizeof(devGenVarConfigArgs[0]),
+	arg:   devGenVarConfigArgs,
+};
+
+static void 
+devGenVarConfigCall(const iocshArgBuf *argBuf)
+{
+	devGenVarConfig( argBuf->ival );
+}
+
+static void devGenVarRegistrar(void)
+{
+	iocshRegister( &devGenVarConfigDef, devGenVarConfigCall );
+}
+
+epicsExportRegistrar(devGenVarRegistrar);

@@ -1,3 +1,15 @@
+2011/01/27 Till Straumann <strauman@slac.stanford.edu>
+    - devGenVarApp/src/devGenVar.c, devGenVarApp/src/devGenVar.h,
+      devGenVarApp/src/devGenVar.dbd:
+      Cannot use the std registry because that may overflow and
+      there is currently no way to increase the table size
+      (registrySetTableSize() doesn't work because no app can
+      call it early enough [C++]).
+
+      Therefore, we now use our own hash table and provide a
+      devGenVarConfig(tableSz) function to configure its
+      size.
+
 2011/01/14 Till Straumann <strauman@slac.stanford.edu>
     - devGenVarApp/src/devGenVar.c, devGenVarApp/src/devGenVar.h:
       Added 'devGenVarInitScanPvt()', 'devGenVarLockRaw()',
