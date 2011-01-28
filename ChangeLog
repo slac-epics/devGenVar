@@ -1,4 +1,7 @@
 2011/01/27 Till Straumann <strauman@slac.stanford.edu>
+    - devGenVarApp/src/devGenVar.c, devGenVarApp/src/devGenVar.h:
+      hash table size must be a power of two between 8..16.
+2011/01/27 Till Straumann <strauman@slac.stanford.edu>
     - devGenVarApp/src/devGenVar.c, devGenVarApp/src/devGenVar.h,
       devGenVarApp/src/devGenVar.dbd:
       Cannot use the std registry because that may overflow and

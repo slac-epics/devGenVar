@@ -17,9 +17,24 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include <epicsVersion.h>
+
 #include "devGenVar.h"
 
-#define REG_TBL_SZ_DEFAULT 512
+#if   ! defined(EPICS_VERSION)      \
+   || ! defined(EPICS_REVISION)     \
+   || ! defined(EPICS_MODIFICATION)
+#error "Unknown EPICS Version"
+#endif
+
+/* I Loooooove changing APIs. Really, I do... */
+#if      EPICS_VERSION > 3 \
+    || ( EPICS_VERSION == 3 && EPICS_REVISION > 14 ) \
+    || ( EPICS_VERSION == 3 && EPICS_REVISION == 14 && EPICS_MODIFICATION > 10 )
+#define HAVE_EPICS_31411
+#endif
+
+#define REG_LD_TBL_SZ_DEFAULT 9
 
 #define FLG_NCONV    (1<<0)
 #define FLG_NCSUP    (1<<1)
@@ -35,17 +50,27 @@ typedef struct RegHeadRec_ {
 	int        n_entries;
 } RegHeadRec, *RegHead;
 
-struct gphPvt *devGenVarRegistry  = 0;
-static unsigned regTblSz = REG_TBL_SZ_DEFAULT;
+#ifdef HAVE_EPICS_31411
+struct gphPvt
+#else
+void
+#endif
+*devGenVarRegistry  = 0;
+
+static unsigned regLdTblSz = REG_LD_TBL_SZ_DEFAULT;
 
 int
-devGenVarConfig(unsigned tblSz)
+devGenVarConfig(unsigned ldTblSz)
 {
+	if ( ldTblSz < 8 || ldTblSz > 16 ) {
+		errlogPrintf("devGenVarConfig(): ldTableSize argument must be in 8..16\n");
+		return (1 << regLdTblSz);
+	}
 	if ( devGenVarRegistry ) {
 		/* Already initialized; return current size */
-		return regTblSz;
+		return (1 << regLdTblSz);
 	}
-	regTblSz = tblSz;
+	regLdTblSz = ldTblSz;
 	return 0;
 }
 
@@ -56,9 +81,7 @@ devGenVarInitDevSup(int pass)
 	 * a single thread and that no locking is required.
 	 */
 	if ( ! devGenVarRegistry ) {
-		if ( 0 == regTblSz )
-			regTblSz = REG_TBL_SZ_DEFAULT;
-		gphInitPvt( &devGenVarRegistry, regTblSz );
+		gphInitPvt( &devGenVarRegistry, (1 << regLdTblSz) );
 
 		if ( ! devGenVarRegistry ) 
 			cantProceed("devGenVar: Unable to create hash table\n");
@@ -782,7 +805,7 @@ static struct {
 epicsExportAddress(dset, devMbboGenVar);
 
 static const iocshArg devGenVarConfigArg1 = {
-	name:	"table_size",
+	name:	"ld_table_size",
 	type:   iocshArgInt,
 };
 

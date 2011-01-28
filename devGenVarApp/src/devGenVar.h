@@ -216,13 +216,17 @@ devGenVarScan(DevGenVar p)
  * is of limited size :-(
  * Call this *before* iocInit to configure
  * the table used by devGenVar.
+ * 
+ * The 'ldTableSize' argument has to be
+ * bigger or equal to 8 and less than or
+ * equal to 16.
  *
  * RETURNS: Zero on success, nonzero
  * on failure (returning the current
  * table size).
  */
 int
-devGenVarConfig(unsigned table_size);
+devGenVarConfig(unsigned ldTableSize);
 
 /* Initialize device-support module. This is
  * to be used as the 'init' member in any DSET.
