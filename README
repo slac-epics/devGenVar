@@ -123,7 +123,7 @@ The 'card' number following 'C', in this case: 'x' selects a particular
 'instance'. I.e, an entire array of DevGenVarRec's can be registered
 under a single name and 'x' is then used as an index into this array.
 
-A DevGenVarRec must be alloated and initialized by your application.
+A DevGenVarRec must be allocated and initialized by your application.
 Initialization can be done with the devGenVarInit() routine or with
 the DEV_GEN_VAR_INIT() macro which is useful for statically allocated
 structs. These helpers bring the struct into a defined state but
