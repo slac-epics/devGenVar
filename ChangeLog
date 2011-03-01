@@ -1,8 +1,9 @@
 2011/03/01 Till Straumann <strauman@slac.stanford.edu>
     - devGenVarApp/src/devGenVar.c, devGenVarApp/src/devGenVar.h,
-      devGenVarApp/src/genVarTestMain.cpp, README: added support
-      for timestamps, status, severity and asynchronous record
-      processing (output records).
+      devGenVarApp/Db/genVarTest.db, devGenVarApp/src/genVarTestMain.cpp,
+      README:
+      added support for timestamps, status, severity and
+      asynchronous record processing (output records).
 2011/01/28 Till Straumann <strauman@slac.stanford.edu>
     - devGenVarApp/src/devGenVar.c, devGenVarApp/src/devGenVar.h:
       removed devGenVarInitDevSup(). devGenVar should be available
