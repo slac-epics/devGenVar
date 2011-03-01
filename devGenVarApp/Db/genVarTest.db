@@ -50,6 +50,15 @@ record(ao,  "$(prefix):aonc") {
 	field(PINI, "YES")
 }
 
+record(ao,  "$(prefix):aoasync") {
+	field(DTYP, "GenVar")
+	field(OUT,  "#C0S2@asyncL")
+	field(LINR, "LINEAR")
+	field(ESLO, "2")
+	field(PINI, "YES")
+	field(TSE,  "-2")
+}
+
 
 record(mbbi,"$(prefix):mbbi") {
 	field(DTYP, "GenVar")
@@ -118,6 +127,7 @@ record(ai,"$(prefix):ai1") {
 	field(INP,  "#C1S0@testL")
 	field(LINR, "LINEAR")
 	field(ESLO, "1")
+	field(TSE,  "-2")
 	field(SCAN, "I/O Intr")
 }
 

@@ -123,6 +123,18 @@ The 'card' number following 'C', in this case: 'x' selects a particular
 'instance'. I.e, an entire array of DevGenVarRec's can be registered
 under a single name and 'x' is then used as an index into this array.
 
+The 'signal' number 'y' specifies optional flags which some records
+support. Multiple flags can be ORed together. The currently supported
+flags have the following semantics:
+
+  1: No-conversion. Certain record types (ai, bi, mbbi, ao, ...) 
+     support the concept of 'no-conversion'. If this flag is set
+     then the record's conversion is bypassed (consult EPICS
+     documentation if you are not familiar with this concept).
+
+  2: Asynchronous processing. Currently only supported for output
+     records (see 'Asynchronous Processing' below).
+
 A DevGenVarRec must be allocated and initialized by your application.
 Initialization can be done with the devGenVarInit() routine or with
 the DEV_GEN_VAR_INIT() macro which is useful for statically allocated
@@ -182,6 +194,110 @@ dbr_t:      EPICS DBR type of your variable. It is crucial that this
             the connected record field -- EPICS' data conversion
             facility is employed for proper conversion.
 
+ts:         Timestamp. This member provides a way for low-level code
+            to propagate a time-stamp to associated records. If
+            an input record has TSE==-2 then it's TIME field will
+            be set with the GenVar's timestamp. Output records
+            don't use this field. (Exception: asynchronous output
+            records, see below).
+
+stat,sevr:  These members provide a way for low-level code to 
+            set an associated input record's status and severity.
+            Note that devGenVar maximises severity in the usual
+            way so that the values provided here may be overriden
+            from some other error-source. Output records deposit
+            their status and severity here during processing
+            (exception: asynchronous output records, see below).
+
 Note that it is perfectly legal to connect multiple records to a single
-'DevGenVarRec' and it's underlying variable. You can have one (input) record
-reading the variable and another (output) record writing to it.
+'DevGenVarRec' and it's underlying variable. You can e.g., have one
+(input) record reading the variable and another (output) record writing
+to it.
+
+Asynchronous Processing
+-----------------------
+devGenVar supports asynchronous record processing for output records.
+This can be useful to make sure the data written by the record
+are consumed by low-level code before processing completes. It also
+permits low-level code to pass timestamp, status and severity information
+back to the record. A GenVar object should hold a valid 'event'
+for synchronizing low-level code with record processing.
+
+NOTE: If asynchronous processing is used then ONLY ONE record must
+be associated with a given GenVar. Otherwise, the results may be
+undefined.
+
+Asynchronous processing is requested by setting the '2' bit in
+the flags ('S' parameter of the record's OUT link).
+
+Asynchronous processing of an output record performs the following
+steps:
+
+1)  Record processes, locks GenVar's mutex
+2)  write low-level variable
+3)  write status/severity accumulated so far (for low-level code
+    to inspect if desired) to GenVar object
+4)  set PACT to indicate phase 1 of record processing to
+    record support.
+5)  post GenVar's event
+6)  unlock GenVar's mutex
+7)  complete record processing phase 1
+
+8)  low-level code that was blocked on GenVar's event
+    becomes ready to run
+9)  low-level code locks GenVar's mutex
+10) low-level code consumes data written by record; may
+    inspect status/severity.
+11) low-level code may set timestamp, status and severity
+    to convey this information back to the record (timestamp
+    is used by record if TSE==-2). Because record maximises
+    severity the values provided by low-level code only
+    take effect if severity is bigger than what had
+    accumulated during phase 1 processing already.
+12) low-level code calls devGenVarProcComplete() which
+    performs phase 2 of asynchronous record processing
+13) low-level code unlocks GenVar's mutex
+
+Example for asynchronous longout record
+
+low-level code, initialization:
+
+  epicsUInt32 myVar;
+
+  DevGenVarRec myGenVar = {
+    DEV_GEN_VAR_INIT( 0, 0, 0, &myVar, DBR_ULONG)
+  };
+
+  /* create lock and event */
+  devGenVarLockCreate( &myGenVar );
+  devGenVarEvtCreate( &myGenVar );
+  /* register */
+  devGenVarRegister( "myAsyncVar", &myGenVar, 1 );
+
+  while ( 1 ) {
+    epicsEventWait( myGenVar.evt );
+	devGenVarLock( &myGenVar );
+	  /* consume; this may take a while */
+      consume( myVar );
+      /* set timestamp; may also set status/severity here
+       * if something went wrong.
+       */
+      myVar.ts = myTimestamp;
+      /* process phase 2 */
+      devGenVarProcComplete( &myGenVar );
+    devGenVarUnlock( &myGenVar );
+  }
+
+Database:
+
+record(longout, "myAsyncLo") {
+  ...
+  field(DTYP,  "GenVar")
+  # bit '2' in S requests asynchronous processing
+  field(OUT,   "#C0 S2 @myAsyncVar")
+  # TSE == -2 lets device support set record's timestamp
+  field(TSE,   "-2")
+  ...
+}
+
+ 

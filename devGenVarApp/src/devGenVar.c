@@ -2,6 +2,7 @@
 #include <dbAccess.h>
 #include <dbConvertFast.h>
 #include <devSup.h>
+#include <recSup.h>
 #include <dbCommon.h>
 #include <dbBase.h>
 #include <errlog.h>
@@ -38,12 +39,13 @@
 #define REG_LD_TBL_SZ_DEFAULT 9
 
 #define FLG_NCONV    (1<<0)
-#define FLG_NCSUP    (1<<1)
+#define FLG_ASYNC    (1<<1)
+#define FLG_NCSUP    (1<<31)
 
 typedef struct DevGenVarPvtRec_ {
-	DevGenVar  gv;
-	int        flags;
-	dbAddr     dbaddr;
+	DevGenVar   gv;
+	epicsUInt32 flags;
+	dbAddr      dbaddr;
 } DevGenVarPvtRec, *DevGenVarPvt;
 
 typedef struct RegHeadRec_ {
@@ -92,6 +94,47 @@ devGenVarConfig(unsigned ldTblSz)
 	return 0;
 }
 
+int
+devGenVarProcComplete(DevGenVar gv)
+{
+int rval;
+
+	if ( ! gv->rec_p )
+		return -1;
+
+	devGenVarLock( gv );
+		/* Test again in case it changed */
+		if ( gv->rec_p ) {
+			dbScanLock( gv->rec_p );
+				/* process nests mutex lock */
+				gv->rec_p->rset->process(gv->rec_p);
+			dbScanUnlock( gv->rec_p );
+
+			gv->rec_p = 0;
+			rval = 0;
+		} else {
+			rval = -1;
+		}
+	devGenVarUnlock( gv );
+
+	return rval;
+}
+
+int
+devGenVarPhase2(dbCommon *prec, DevGenVar gv)
+{
+	if ( ! prec->pact ) {
+		/* not phase 2 */
+		return -1;
+	}
+	if ( epicsTimeEventDeviceTime == prec->tse ) {
+		prec->time = gv->ts;
+	}
+	recGblSetSevr( prec, gv->stat, gv->sevr );
+
+	return 0;
+}
+
 long
 devGenVarRegister(const char *registryEntry, DevGenVar gv, int n_entries)
 {
@@ -133,6 +176,12 @@ long          status;
 	/* 'put' from outside data buffer to rec. field */
 	status = (* (dbFastPutConvertRoutine[dbr_t][dbf_t]))(gv->data_p, p->dbaddr.pfield, &p->dbaddr);
 
+	/* Use timestamp, status and severity */
+	if ( epicsTimeEventDeviceTime == prec->tse )
+		prec->time = gv->ts;
+
+	recGblSetSevr( prec, gv->stat, gv->sevr );
+
 	if ( status )
 		recGblSetSevr( prec, READ_ALARM, INVALID_ALARM );
 	else if ( (p->flags & FLG_NCONV) ) {
@@ -161,6 +210,12 @@ long          status;
 	if ( status ) {
 		recGblRecordError(status, prec, "Unable to read current value back\n");
 		recGblSetSevr(prec, READ_ALARM, MAJOR_ALARM);
+		/* Propagate stat, sevr and timestamp out to GenVar. This is normally
+		 * done by devGenVarPut but if devsup uses this routine it should
+		 * omit devGenVarPut when reading back fails.
+		 */
+		gv->stat = prec->stat;
+		gv->sevr = prec->sevr;
 	}
 
 	return status;
@@ -197,13 +252,34 @@ long     status;
 	if ( dbf_t > DBF_DEVICE || dbr_t > DBR_ENUM )
 		return -1;
 
+	if ( 0 == devGenVarPhase2( prec, gv ) ) {
+		/* phase 2 */
+		return 0;
+	}
+
+	/* Is asynchronous processing requested ? */
+	if ( (p->flags & FLG_ASYNC) ) {
+		if ( gv->rec_p ) {
+			recGblRecordError(S_dev_Conflict, prec, "Only ONE record may asynchronously process a GenVar\n");
+			recGblSetSevr( prec, WRITE_ALARM, INVALID_ALARM );
+			return -1;
+		}
+		/* Initiate phase 1 */
+		gv->rec_p  = prec;
+		prec->pact = TRUE;
+	}
+
 	status = (* (dbFastGetConvertRoutine[dbf_t][dbr_t]))(p->dbaddr.pfield, gv->data_p, &p->dbaddr);
 
 	if ( status ) {
 		recGblSetSevr( prec, WRITE_ALARM, INVALID_ALARM );
-	} else {
-		if ( gv->evt )
-			epicsEventSignal( gv->evt );
+	}
+
+	gv->stat = prec->stat;
+	gv->sevr = prec->sevr;
+
+	if ( gv->evt ) {
+		epicsEventSignal( gv->evt );
 	}
 
 	return status;
@@ -304,15 +380,17 @@ dbFldDes *fldD;
 	}
 
 	p->gv    = h->gv + l->value.vmeio.card;
-	/* no conversion; use raw field */
-	p->flags = 0;
+
+	p->flags = (l->value.vmeio.signal & 0xffff);
 
 	if ( rawFldOff >= 0 ) {
 		p->flags |= FLG_NCSUP;
-		if ( l->value.vmeio.signal) {
-			p->flags |= FLG_NCONV;
+		if ( ( p->flags & FLG_NCONV ) ) {
+			/* no conversion; use raw field */
 			fldOff = rawFldOff;
 		}
+	} else {
+		p->flags &= ~FLG_NCONV;
 	}
 
 	prec->dpvt = p;
@@ -687,6 +765,12 @@ epicsUInt32 rv;
 
 	devGenVarLock( gv );
 
+	if ( 0 == devGenVarPhase2( (dbCommon*)prec, gv ) ) {
+		/* it was phase 2 */
+		devGenVarUnlock( gv );
+		return 0;
+	}
+
 	if ( prec->mask ) {
 		/* Read value back into RVAL (caching original value) */
 		rv = prec->rval;
@@ -773,6 +857,12 @@ DevGenVar         gv = p->gv;
 epicsUInt32 rv;
 
 	devGenVarLock( gv );
+
+	if ( 0 == devGenVarPhase2( (dbCommon*)prec, gv ) ) {
+		/* it was phase 2 */
+		devGenVarUnlock( gv );
+		return 0;
+	}
 
 	/* Read value back into RVAL (caching original value) */
 	rv = prec->rval;

@@ -6,6 +6,7 @@
 #include <dbCommon.h>
 #include <epicsMutex.h>
 #include <epicsEvent.h>
+#include <epicsTime.h>
 #include <string.h>
 
 #ifdef __cplusplus
@@ -50,6 +51,15 @@ extern "C" {
  *
  *       dbr_t:    (mandatory) EPICS DBR type of the generic-varibale/object.               
  *
+ *  Run-time fields:
+ *       ts, stat, 
+ *       sevr:     (optional) convey time-stamp, status + severity
+ *                 back to input-record or asynchronous output record.
+ *                 Synchronous output records write these fields.
+ *
+ *  Private fields:
+ *       rec_p:    Used internally, initialize to NULL and do not modify.
+ *
  *  NOTE: Only the mandatory and optional fields that you intend to use 
  *        need to be filled by you. Unused optional fields may remain
  *        as written by devGenVarInit().
@@ -64,6 +74,9 @@ typedef struct DevGenVarRec_ {
 	DevGenVarEvt    evt;           /* synchronization (may be NULL)     */
 	volatile void  *data_p;        /* data we want to transfer          */
 	unsigned        dbr_t;         /* DBR type of data we want to transfer from/to field */
+	epicsTimeStamp  ts;            /* timestamp (if TSE == epicsTimeEventDeviceTime)     */
+	epicsEnum16     stat, sevr;    /* status + severity                                  */
+	dbCommon       *rec_p;         /* INTERNAL USE ONLY; DO NOT TOUCH                    */
 } DevGenVarRec, *DevGenVar;
 
 /*
@@ -107,7 +120,8 @@ devGenVarInitScanPvt( DevGenVar p, int n_entries );
  * In this example both variables are connected to the same scan-list.
  */
 #define DEV_GEN_VAR_INIT( scan, mutx, evnt, data, type ) \
-	{ scan_p: (scan), mtx: (mutx), evt: (evnt), data_p: (data), dbr_t: (type) }
+	{ scan_p: (scan), mtx: (mutx), evt: (evnt), data_p: (data), dbr_t: (type), \
+      ts: { 0, 0 }, stat: 0, sevr: 0, rec_p: 0 }
 
 /*
  * Register an array of DevGenVarRec's so that the device-support module
@@ -227,6 +241,26 @@ devGenVarScan(DevGenVar p)
  */
 int
 devGenVarConfig(unsigned ldTableSize);
+
+/*
+ * Complete asynchronous processing (for records/devsup
+ * that support this).
+ * Allows for propagating a timestamp back to the record:
+ *
+ *  1) record processes first time
+ *  2) write value to genVar
+ *  3) notify ll-code via event
+ *  4) set pact and complete first processing step
+ *  5) ll-code uses value
+ *  6) ll-code sets timestamp, stat + severity
+ *  7) ll-code calls devGenVarProcComplete();
+ *  8) record processes second time, sets timestamp
+ *     (if TSE == epicsTimeEventDeviceTime), stat + sevr
+ *  9) done.
+ */
+
+int
+devGenVarProcComplete(DevGenVar p);
 
 #ifdef __cplusplus
 }
