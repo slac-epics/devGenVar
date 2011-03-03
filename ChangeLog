@@ -1,3 +1,6 @@
+2011/03/03 Till Straumann <strauman@slac.stanford.edu>
+    - devGenVarApp/src/devGenVar.c: post event when input
+      records process also.
 2011/03/01 Till Straumann <strauman@slac.stanford.edu>
     - devGenVarApp/src/devGenVar.c, devGenVarApp/src/devGenVar.h,
       devGenVarApp/Db/genVarTest.db, devGenVarApp/src/genVarTestMain.cpp,

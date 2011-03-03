@@ -190,6 +190,10 @@ long          status;
 		status = 2;
 	}
 
+	if ( gv->evt ) {
+		epicsEventSignal( gv->evt );
+	}
+
 	return status;
 }
 
@@ -439,10 +443,14 @@ devGenVarInitInpRec(DBLINK *l, dbCommon *prec, int fldOff, int rawFldOff)
 long 
 devGenVarInitOutRec(DBLINK *l, dbCommon *prec, int fldOff, int rawFldOff)
 {
-long status;
+long         status;
+devGenVarEvt evt;
+DevGenVarPvt p;
 
 	status = devGenVarInitRec(l, prec, fldOff, rawFldOff);
 	if ( status ) goto bail;
+
+	p = prec->dpvt;
 
 	if ( prec->pini ) {
 		/* Assume they want to write initial 'VAL' out. 
@@ -452,11 +460,22 @@ long status;
 		 * happens...
 		 * Do this only for records which support conversion...
 		 */
-		if ( (((DevGenVarPvt)prec->dpvt)->flags & FLG_NCSUP) )
+		if ( (p->flags & FLG_NCSUP) )
 			status = 2;
 	} else {
 		/* Read current value into record */
-		status = devGenVarGet(prec);
+
+		devGenVarLock( p->gv );
+		/* Ugly hack; we don't want to sent the event
+		 * here so we temporarily set it to NULL
+		 */
+		evt = p->gv->ev;
+		p->gv->ev = 0;
+		status = devGenVarGet_nolock(prec);
+		p->gv->ev = evt;
+
+		devGenVarUnlock( p->gv );
+
 		if ( status >= 0 )
 			recGblResetAlarms(prec);
 	}
