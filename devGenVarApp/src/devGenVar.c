@@ -40,6 +40,7 @@
 
 #define FLG_NCONV    (1<<0)
 #define FLG_ASYNC    (1<<1)
+#define FLG_NPOST    (1<<2)
 #define FLG_NCSUP    (1<<31)
 
 typedef struct DevGenVarPvtRec_ {
@@ -190,7 +191,7 @@ long          status;
 		status = 2;
 	}
 
-	if ( gv->evt ) {
+	if ( gv->evt && ! (p->flags & FLG_NPOST) ) {
 		epicsEventSignal( gv->evt );
 	}
 
@@ -282,7 +283,7 @@ long     status;
 	gv->stat = prec->stat;
 	gv->sevr = prec->sevr;
 
-	if ( gv->evt ) {
+	if ( gv->evt && ! (p->flags & FLG_NPOST) ) {
 		epicsEventSignal( gv->evt );
 	}
 

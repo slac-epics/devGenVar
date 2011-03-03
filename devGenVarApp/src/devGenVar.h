@@ -43,11 +43,15 @@ extern "C" {
  *                 this mutex (if present).
  *
  *       evt:      (optional) event that can be used to notify
- *                 your code that a generic-variable was written
- *                 by an output record.
+ *                 your code that associated record is done processing.
+ *                 Posting this event can be suppressed if the flag bit
+ *                 (1<<2) is set in the associated record's 'signal'
+ *                 part of the INP/OUT link. This is useful if multiple
+ *                 records are associated with a single GenVar. in such
+ *                 a case it could make sense for only one record to send
+ *                 an event.
  *
  *       data_p:   (mandatory) opaque pointer to your generic-variable.
- *
  *
  *       dbr_t:    (mandatory) EPICS DBR type of the generic-varibale/object.               
  *
@@ -55,7 +59,9 @@ extern "C" {
  *       ts, stat, 
  *       sevr:     (optional) convey time-stamp, status + severity
  *                 back to input-record or asynchronous output record.
- *                 Synchronous output records write these fields.
+ *                 Output records write these fields (asynchronous records
+ *                 write them during phase 1 and read them back during
+ *                 phase 2).
  *
  *  Private fields:
  *       rec_p:    Used internally, initialize to NULL and do not modify.
@@ -63,6 +69,10 @@ extern "C" {
  *  NOTE: Only the mandatory and optional fields that you intend to use 
  *        need to be filled by you. Unused optional fields may remain
  *        as written by devGenVarInit().
+ *
+ *        After registering the structure with devGenVarRegister()
+ *        the framework 'takes over' the structure, hence it *must not*
+ *        live on the stack (local variable) or ever be 'free()ed'.
  */
 
 typedef epicsEventId DevGenVarEvt; 
@@ -128,6 +138,11 @@ devGenVarInitScanPvt( DevGenVar p, int n_entries );
  * may find them.
  *
  * RETURNS: zero on success, nonzero on failure.
+ *
+ * NOTE   : The DevGenVarRec struct(s) that 'p' is referring to are
+ *          'taken over' by the framework. It is a programming error to
+ *          use local (stack) variables or 'free()' a DevGenVarRec
+ *          after it has been passed to this routine. 
  */
 long
 devGenVarRegister(const char *registryEntry, DevGenVar p, int n_entries);
@@ -135,25 +150,28 @@ devGenVarRegister(const char *registryEntry, DevGenVar p, int n_entries);
 /*
  * Create an event and attach to 'p'. Always use this routine - the
  * underlying object may change in the future!
+ * 
  */
 
 long
 devGenVarEvtCreate(DevGenVar p);
 
-/* Block (with timeout) until devsup has written to generic variable.
+/* Block (with timeout) until devsup has written to generic variable
+ * or is done reading from it.
  * Useful to synchronize low-level code with EPICS writing to an 
- * output record.
+ * output record or reading from an input record.
  *
  * NOTES: Zero timeout returns immediately, negative timeout blocks
  *        indefinitely.
  *       
- *        Only supported for output records (which *write* to a GenVar).
- *        The usual mechanism for letting an input record know that
- *        the underlying GenVar changed is calling scanIoRequest().
- *
  *        ALWAYS use this routine, NEVER epicsEventWaitxxx() directly
  *        because the implementation may change, moving away from 
  *        epics events!
+ *
+ *        If multiple records are attached to the same DevGenVar
+ *        then posting the event may be suppressed for individual
+ *        records by setting bit (1<<2) in the INP/OUT link's 
+ *        'signal' attribute.
  */
 #define DEV_GEN_VAR_OK	       0
 #define DEV_GEN_VAR_TIMEDOUT   1
@@ -228,8 +246,10 @@ devGenVarScan(DevGenVar p)
 
 /* EPICS' 'general-purpose' hash table
  * is of limited size :-(
- * Call this *before* iocInit to configure
- * the table used by devGenVar.
+ * Call this *before* iocInit and *before*
+ * the first call to devGenVarRegister() in
+ * order to configure the table used by
+ * devGenVar.
  * 
  * The 'ldTableSize' argument has to be
  * bigger or equal to 8 and less than or

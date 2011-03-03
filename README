@@ -1,6 +1,8 @@
 devGenVar - device support for connecting basic C/C++ variables to EPICS records
 ================================================================================
 
+NOTE:    The authoritative API documentation is the 'devGenVar.h' header file.
+
 Purpose: Often, low-level code uses basic variables (int/short/double/...) which
          you either want to read or write via EPICS records.
 
@@ -8,7 +10,8 @@ Purpose: Often, low-level code uses basic variables (int/short/double/...) which
            - minimal coding overhead.
            - notify (input) records when C-variables have changed via EPICS scan-lists
              ("I/O Intr" scanning)
-           - notify low-level C-code when EPICS (output) records modifiy C-variable
+           - notify low-level C-code when EPICS (output) record modifies C-variable
+             or is done reading the C-variable (input record).
            - EPICS DBR types supported; use EPICS conversion facility to convert
              from C-variable (DBR-type) to/from EPICS record field.
            - optional locking for serializing access to C-variable
@@ -135,6 +138,11 @@ flags have the following semantics:
   2: Asynchronous processing. Currently only supported for output
      records (see 'Asynchronous Processing' below).
 
+  4: No-post. Suppress sending the event present in the 'DevGenVar'
+     struct. This may be desirable if multiple records are associated
+     with a single DevGenVar and the user does not want all of them
+     to post the event.
+
 A DevGenVarRec must be allocated and initialized by your application.
 Initialization can be done with the devGenVarInit() routine or with
 the DEV_GEN_VAR_INIT() macro which is useful for statically allocated
@@ -175,8 +183,7 @@ mtx:        (optional) mutex to serialize access to your (*data_p)
             mutex.
 
 evt:        (optional) event that can be used to notify your code
-            when the variable was written by an output record.
-            (Never used by input records). It is your responsibility
+            when the record is done processing. It is your responsibility
             to create an event (devGenVarEvtCreate()).
 
 data_p:     pointer to your variable
