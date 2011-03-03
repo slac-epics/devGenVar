@@ -444,7 +444,7 @@ long
 devGenVarInitOutRec(DBLINK *l, dbCommon *prec, int fldOff, int rawFldOff)
 {
 long         status;
-devGenVarEvt evt;
+DevGenVarEvt evt;
 DevGenVarPvt p;
 
 	status = devGenVarInitRec(l, prec, fldOff, rawFldOff);
@@ -469,10 +469,10 @@ DevGenVarPvt p;
 		/* Ugly hack; we don't want to sent the event
 		 * here so we temporarily set it to NULL
 		 */
-		evt = p->gv->ev;
-		p->gv->ev = 0;
-		status = devGenVarGet_nolock(prec);
-		p->gv->ev = evt;
+		evt = p->gv->evt;
+		p->gv->evt = 0;
+		status     = devGenVarGet_nolock(prec);
+		p->gv->evt = evt;
 
 		devGenVarUnlock( p->gv );
 
