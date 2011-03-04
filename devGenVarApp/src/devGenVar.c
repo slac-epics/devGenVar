@@ -49,6 +49,7 @@ typedef struct DevGenVarPvtRec_ {
 typedef struct RegHeadRec_ {
 	DevGenVar  gv;
 	int        n_entries;
+	char       name[];
 } RegHeadRec, *RegHead;
 
 #ifdef HAVE_EPICS_31411
@@ -99,16 +100,23 @@ RegHead   h = 0;
 GPHENTRY *he;
 
 	init_once();
+
+	if ( 0 == n_entries )
+		return 0;
+
+	if ( ! registryEntry || !gv )
+		return -1;
 	
-	if ( ! (h = malloc(sizeof(*h))) ) {
+	if ( ! (h = malloc(sizeof(*h) + strlen(registryEntry) + 1)) ) {
 		errlogPrintf("devGenVarRegister: no memory\n");
 		return -1;
 	}
 
 	h->n_entries = n_entries;
 	h->gv        = gv;
+	strcpy(h->name, registryEntry);
 
-	if ( ! (he = gphAdd(devGenVarRegistry, registryEntry, devGenVarRegistry)) ) {
+	if ( ! (he = gphAdd(devGenVarRegistry, h->name, devGenVarRegistry)) ) {
 		errlogPrintf("devGenVarRegister: Unable to add entry '%s'\n", registryEntry);
 		free(h);
 		return -1;

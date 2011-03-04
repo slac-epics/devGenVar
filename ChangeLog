@@ -1,3 +1,7 @@
+2011/03/04 Till Straumann <strauman@slac.stanford.edu>
+    - devGenVarApp/src/devGenVar.c: Let 'devGenVarRegister'
+      make copy of name when creating hash-table entry so
+      the user may destroy it.
 2011/01/28 Till Straumann <strauman@slac.stanford.edu>
     - devGenVarApp/src/devGenVar.c, devGenVarApp/src/devGenVar.h:
       removed devGenVarInitDevSup(). devGenVar should be available
