@@ -363,10 +363,10 @@ static long
 devGenVarInitRec(DBLINK *l, dbCommon *prec, int fldOff, int rawFldOff)
 {
 RegHead       h;
-DevGenVarPvt  p;
+DevGenVarPvt  p = 0;
 char        *nm = 0;
 long       rval = -1;
-dbFldDes *fldD;
+dbFldDes  *fldD;
 
 	if ( VME_IO != l->type ) {
 		errlogPrintf("devGenVarInitRec(%s): link must be of type VME_IO\n", prec->name);
@@ -406,8 +406,6 @@ dbFldDes *fldD;
 		p->flags &= ~FLG_NCONV;
 	}
 
-	prec->dpvt = p;
-
 	if ( fldOff >= prec->rdes->no_fields ) {
 		errlogPrintf("devGenVarInitRec(%s): fldOff(%i) out of range\n", prec->name, fldOff);
 		rval = S_db_errArg;
@@ -432,9 +430,12 @@ dbFldDes *fldD;
 		goto bail;
 	}
 
+	prec->dpvt = p;
+	p    = 0;
 	rval = 0;
 
 bail:
+	free ( p  );
 	free ( nm );
 	if ( rval ) {
 		prec->pact = TRUE;
@@ -475,7 +476,7 @@ DevGenVarPvt p;
 		/* Read current value into record */
 
 		devGenVarLock( p->gv );
-		/* Ugly hack; we don't want to sent the event
+		/* Ugly hack; we don't want to send the event
 		 * here so we temporarily set it to NULL
 		 */
 		evt = p->gv->evt;
@@ -552,8 +553,8 @@ static struct {
 	NULL,
 	init_rec_ai,
 	devGenVarGetIointInfo,
-	devGenVarGet,
-	read_ai
+	read_ai,
+	NULL
 };
 epicsExportAddress(dset, devAiGenVar);
 

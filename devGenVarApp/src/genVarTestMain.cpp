@@ -49,6 +49,20 @@ asyncT(void *)
 	}
 }
 
+static void
+ioscnT(void *)
+{
+	while ( 1 ) {
+		epicsThreadSleep(2.0);
+		devGenVarLock( & testS[0] );
+		if ( 0xffff != genTestS ) {
+			genTestS++;
+			scanIoRequest( listS );
+		}
+		devGenVarUnlock( & testS[0] );
+	}
+}
+
 int
 main(int argc, char **argv)
 {
@@ -75,6 +89,12 @@ main(int argc, char **argv)
 	                      epicsThreadPriorityLow,
 	                      epicsThreadGetStackSize(epicsThreadStackMedium),
 	                      asyncT,
+	                      0 );
+
+	epicsThreadMustCreate("ioscnThread",
+	                      epicsThreadPriorityLow,
+	                      epicsThreadGetStackSize(epicsThreadStackMedium),
+	                      ioscnT,
 	                      0 );
 	if ( argc >= 0 ) {
 		iocsh( argv[1] );

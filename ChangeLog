@@ -1,3 +1,9 @@
+2012/03/19 Till Straumann <strauman@slac.stanford.edu>
+    - devGenVarApp/src/devGenVar.c: FIX - DSET for AI record
+      had 'devGenVarGet' instead of 'read_ai' and 'read_ai' as
+      special_linconv.
+    - devGenVarApp/src/genVarTestMain.cpp: added task which requests
+      IO-scan of 'listS' every 2s while value is not 0xffff.
 2011/03/04 Till Straumann <strauman@slac.stanford.edu>
     - devGenVarApp/src/devGenVar.c: Let 'devGenVarRegister'
       make copy of name when creating hash-table entry so
