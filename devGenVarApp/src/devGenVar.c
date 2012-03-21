@@ -462,6 +462,10 @@ DevGenVarPvt p;
 
 	p = prec->dpvt;
 
+	prec->udf = FALSE;
+	if ( status >= 0 )
+		recGblResetAlarms(prec);
+
 	if ( prec->pini ) {
 		/* Assume they want to write initial 'VAL' out. 
 		 * In this case we just initialize but don't read back.
@@ -486,8 +490,6 @@ DevGenVarPvt p;
 
 		devGenVarUnlock( p->gv );
 
-		if ( status >= 0 )
-			recGblResetAlarms(prec);
 	}
 bail:
 	return status;

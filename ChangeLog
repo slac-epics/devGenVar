@@ -1,3 +1,7 @@
+2012/03/20 Till Straumann <strauman@slac.stanford.edu>
+    - devGenVarApp/src/devGenVar.c: clear UDF and reset alarms
+      when initializing an OUT record. Not all records do this
+      in record support.
 2012/03/19 Till Straumann <strauman@slac.stanford.edu>
     - devGenVarApp/src/devGenVar.c: FIX - DSET for AI record
       had 'devGenVarGet' instead of 'read_ai' and 'read_ai' as
