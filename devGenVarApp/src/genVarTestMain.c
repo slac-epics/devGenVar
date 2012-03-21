@@ -33,7 +33,7 @@ static DevGenVarRec asyncL[] = {
 };
 
 static void
-asyncT(void *)
+asyncT(void *arg)
 {
 	asyncL[0].ts.nsec = 44444444;
 	while ( 1 ) {
@@ -50,7 +50,7 @@ asyncT(void *)
 }
 
 static void
-ioscnT(void *)
+ioscnT(void *arg)
 {
 	while ( 1 ) {
 		epicsThreadSleep(2.0);

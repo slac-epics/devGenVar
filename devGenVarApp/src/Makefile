@@ -29,7 +29,7 @@ genVarTest_DBD += devGenVar.dbd
 
 
 genVarTest_SRCS += genVarTest_registerRecordDeviceDriver.cpp
-genVarTest_SRCS_DEFAULT += genVarTestMain.cpp
+genVarTest_SRCS_DEFAULT += genVarTestMain.c
 genVarTest_SRCS_RTEMS   += -nil-
 
 genVarTest_LIBS += devGenVar

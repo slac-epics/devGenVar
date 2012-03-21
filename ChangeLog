@@ -1,4 +1,8 @@
 2012/03/20 Till Straumann <strauman@slac.stanford.edu>
+    - devGenVarApp/src/genVarTestMain.cpp, devGenVarApp/src/genVarTestMain.c
+      devGenVarApp/src/Makefile: moved C++ file -> C file to silence
+      compiler warnings.
+2012/03/20 Till Straumann <strauman@slac.stanford.edu>
     - devGenVarApp/src/devGenVar.c: clear UDF and reset alarms
       when initializing an OUT record. Not all records do this
       in record support.
